@@ -1,4 +1,3 @@
-import {Response} from "bun-types/fetch";
 import {writeFile,readFile,mkdir} from "node:fs/promises";
 import MIMEType from "whatwg-mimetype";
 import md5 from "md5";
@@ -23,33 +22,33 @@ export class Resource {
 
 export class Crawler {
 
-    #cacheDir: string;
-    #resources: Map<string, Resource>;
-    #queue: Array<Resource>;
-    #workers: Set<Promise<Resource>>;
-    #maxWorkers: number;
+    private readonly cacheDir: string;
+    private resources: Map<string, Resource>;
+    private queue: Array<Resource>;
+    private readonly workers: Set<Promise<Resource>>;
+    private readonly maxWorkers: number;
 
     constructor(cacheDir: string, maxWorkers: number) {
-        this.#cacheDir = cacheDir;
-        this.#resources = new Map();
-        this.#queue = [];
-        this.#workers = new Set();
-        this.#maxWorkers = maxWorkers;
+        this.cacheDir = cacheDir;
+        this.resources = new Map();
+        this.queue = [];
+        this.workers = new Set();
+        this.maxWorkers = maxWorkers;
     }
 
     enqueue(...urls: URL[]) {
         for (let url of urls) {
-            if (!this.#resources.has(url.href)) {
+            if (!this.resources.has(url.href)) {
                 const resource = new Resource(url, this.contentFilePath(url));
-                this.#resources.set(url.href, resource);
-                this.#queue.push(resource);
+                this.resources.set(url.href, resource);
+                this.queue.push(resource);
             }
         }
     }
 
     private contentFilePath(url: URL) {
         const hash = md5(url.href);
-        return `${this.#cacheDir}/${hash.substring(0,2)}/${hash.substring(2,4)}/${hash}`;
+        return `${this.cacheDir}/${hash.substring(0,2)}/${hash.substring(2,4)}/${hash}`;
     }
 
     private normalizeError(e: unknown): Error {
@@ -95,21 +94,21 @@ export class Crawler {
 
     request(resource: Resource): Promise<Resource> {
         resource.worker = this._request(resource);
-        this.#workers.add(resource.worker);
+        this.workers.add(resource.worker);
         return resource.worker;
     }
 
     async run() {
-        while (this.#queue.length > 0 || this.#workers.size > 0) {
-            const numNewWorkers = this.#maxWorkers - Math.min(this.#workers.size, this.#maxWorkers);
-            this.#queue
+        while (this.queue.length > 0 || this.workers.size > 0) {
+            const numNewWorkers = this.maxWorkers - Math.min(this.workers.size, this.maxWorkers);
+            this.queue
                 .splice(0, numNewWorkers)
                 .map(resource => this.request(resource))
-                .forEach(worker => this.#workers.add(worker));
+                .forEach(worker => this.workers.add(worker));
 
-            const resource = await Promise.race(this.#workers);
+            const resource = await Promise.race(this.workers);
             if (resource.worker) {
-                this.#workers.delete(resource.worker);
+                this.workers.delete(resource.worker);
                 delete resource.worker;
             }
             if(resource.state === "loaded") {
@@ -133,10 +132,10 @@ export class Crawler {
     private async extractURLs(resource: Resource): Promise<string[]> {
         if (!resource.mimeType || !resource.mimeType.isHTML()) return [];
         const doc = new JSDOM(await readFile(resource.contentFile));
-        return [
+        return [...new Set([
             ...this.scanRootElement(doc.window.document.querySelector("head")),
             ...this.scanRootElement(doc.window.document.querySelector("body"))
-        ];
+        ])];
     }
 
     private filterURLs(urls: URL[]) :URL[] {
@@ -152,7 +151,7 @@ export class Crawler {
                 for (let attributeRule of rule.attributes) {
                     for(let attribute of el.attributes) {
                         if (attributeRule.match.test(attribute.name)) {
-                            urls.push(...attributeRule.transform(attribute.value));
+                            urls.push(...attributeRule.parse(attribute.value));
                         }
                     }
                 }
@@ -168,21 +167,20 @@ const rules = [
         attributes: [
             {
                 match: /href$/,
-                transform: (url: string) => [url]
+                parse: (url: string) => [url]
             }
-        ],
-        transform: (_:string) => [_]
+        ]
     },
     {
         selector: 'body img, body video, body video > source',
         attributes: [
             {
                 match: /src$/,
-                transform: (url: string) => [url]
+                parse: (url: string) => [url]
             },
             {
                 match: /srcset$/,
-                transform: (url: string) => url.split(",").map(part => part.trim().split(/\s+/)[0])
+                parse: (url: string) => url.split(",").map(part => part.trim().split(/\s+/)[0])
             }
         ],
     }
