@@ -11,26 +11,7 @@ export abstract class ParsedAttribute implements IParsedAttribute {
         this.parts = this.parseAttributeValue(attributeValue);
     }
 
-    parseAttributeValue(attributeValue: string): Array<{ type: 'url' | 'text', value: string }> {
-        // Implement parsing logic to split attributeValue into URLs and text parts
-        const parts: Array<{ type: 'url' | 'text', value: string }> = [];
-        // Example parsing logic (simplified):
-        const regex = /(https?:\/\/[^\s]+)/g;
-        let match;
-        let lastIndex = 0;
-        while ((match = regex.exec(attributeValue)) !== null) {
-            if (match.index > lastIndex) {
-                parts.push({type: 'text', value: attributeValue.substring(lastIndex, match.index)});
-            }
-            parts.push({type: 'url', value: match[0]});
-            lastIndex = regex.lastIndex;
-        }
-        if (lastIndex < attributeValue.length) {
-            parts.push({type: 'text', value: attributeValue.substring(lastIndex)});
-        }
-        return parts;
-    }
-
+    abstract parseAttributeValue(attributeValue: string): Array<{ type: 'url' | 'text', value: string }>;
     getURLs(): string[] {
         return this.parts.filter(part => part.type === 'url').map(part => part.value);
     }
