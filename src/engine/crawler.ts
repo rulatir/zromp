@@ -3,6 +3,9 @@ import MIMEType from "whatwg-mimetype";
 import md5 from "md5";
 import {dirname} from "node:path";
 import {JSDOM} from "jsdom";
+import { ParsedAttribute } from "./parsed-attribute.ts";
+import {HrefLike} from "./attributes/href-like.ts";
+import {SrcSetLike} from "./attributes/srcset-like.ts";
 
 export class Resource {
 
@@ -12,11 +15,13 @@ export class Resource {
     state: "pending" | "loading" | "loaded" | "error";
     error?: Error;
     worker?: Promise<Resource>;
+    replacements: ParsedAttribute[]
 
     constructor(url: URL, contentFile: string) {
         this.url = url;
         this.contentFile = contentFile;
         this.state = "pending";
+        this.replacements = [];
     }
 }
 
@@ -133,8 +138,8 @@ export class Crawler {
         if (!resource.mimeType || !resource.mimeType.isHTML()) return [];
         const doc = new JSDOM(await readFile(resource.contentFile));
         return [...new Set([
-            ...this.scanRootElement(doc.window.document.querySelector("head")),
-            ...this.scanRootElement(doc.window.document.querySelector("body"))
+            ...this.scanRootElement(resource, doc.window.document.querySelector("head")),
+            ...this.scanRootElement(resource, doc.window.document.querySelector("body"))
         ])];
     }
 
@@ -142,16 +147,18 @@ export class Crawler {
         return urls;
     }
 
-    private scanRootElement(element: HTMLElement | null): string[] {
+    private scanRootElement(resource: Resource, element: HTMLElement | null): string[] {
         if (!element) return [];
         const urls: string[] = [];
         for (let rule of rules) {
-            const elements = element.querySelectorAll(rule.selector);
+            const elements : NodeListOf<HTMLElement> = element.querySelectorAll(rule.selector);
             for (let el of elements) {
                 for (let attributeRule of rule.attributes) {
                     for(let attribute of el.attributes) {
                         if (attributeRule.match.test(attribute.name)) {
-                            urls.push(...attributeRule.parse(attribute.value));
+                            const replacement = new attributeRule.parse(el, attribute.name, attribute.value);
+                            resource.replacements.push(replacement);
+                            urls.push(...replacement.getURLs());
                         }
                     }
                 }
@@ -165,23 +172,14 @@ const rules = [
     {
         selector: 'body a, head > link',
         attributes: [
-            {
-                match: /href$/,
-                parse: (url: string) => [url]
-            }
+            {   match: /href$/,     parse: HrefLike }
         ]
     },
     {
         selector: 'body img, body video, body video > source',
         attributes: [
-            {
-                match: /src$/,
-                parse: (url: string) => [url]
-            },
-            {
-                match: /srcset$/,
-                parse: (url: string) => url.split(",").map(part => part.trim().split(/\s+/)[0])
-            }
-        ],
+            {   match: /src$/,      parse: HrefLike },
+            {   match: /srcset$/,   parse: SrcSetLike }
+        ]
     }
-]
+];
