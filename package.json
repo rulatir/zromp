@@ -3,17 +3,28 @@
   "module": "index.ts",
   "type": "module",
   "devDependencies": {
+    "@types/chai": "^5.0.1",
     "@types/md5": "^2.3.5",
-    "bun-types": "latest"
+    "@types/mocha": "^10.0.9",
+    "bun-types": "latest",
+    "chai": "^5.1.2",
+    "mocha": "^10.8.2",
+    "nearley": "^2.20.1"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@prettier/parse-srcset": "https://github.com/prettier/parse-srcset",
     "@types/jsdom": "^21.1.7",
+    "@types/moo": "^0.5.9",
     "@types/whatwg-mimetype": "^3.0.2",
     "jsdom": "^25.0.1",
     "md5": "^2.3.0",
+    "moo": "no-context/moo",
     "whatwg-mimetype": "^4.0.0"
+  },
+  "scripts": {
+    "test": "bun run mocha 'test/**/*.spec.ts'"
   }
 }
