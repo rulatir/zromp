@@ -1,16 +1,16 @@
 import { expect } from "chai";
 import { JSDOM } from "jsdom";
-import { SrcSetLike } from "@src/engine/fragments/srcset-like";
+import { SrcsetLikeEditor } from "@src/engine/fragments/srcset-like-editor.ts";
 
 describe("SrcSetLike", () => {
     let element: HTMLElement;
-    let srcSetLike: SrcSetLike;
+    let srcSetLike: SrcsetLikeEditor;
 
     beforeEach(() => {
         // noinspection HtmlUnknownTarget
         const dom = new JSDOM(`<img srcset="image1.jpg 1x, image2.jpg 2x" alt="foo" src="image1.jpg">`);
         element = dom.window.document.querySelector("img") as HTMLElement;
-        srcSetLike = new SrcSetLike(element, "srcset", element.getAttribute("srcset") as string);
+        srcSetLike = new SrcsetLikeEditor(element, "srcset", element.getAttribute("srcset") as string);
     });
 
     it("should parse URLs correctly", () => {

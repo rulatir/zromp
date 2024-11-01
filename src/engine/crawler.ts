@@ -5,7 +5,7 @@ import {dirname} from "node:path";
 import {JSDOM} from "jsdom";
 import { URLEditor } from "./url-editor.ts";
 import {HrefLikeEditor} from "@src/engine/fragments/href-like-editor.ts";
-import {SrcSetLike} from "@src/engine/fragments/srcset-like.ts";
+import {SrcsetLikeEditor} from "@src/engine/fragments/srcset-like-editor.ts";
 
 export class Resource {
 
@@ -205,13 +205,13 @@ const rules = [
     {
         selector: srcSetElements.join(', '),
         attributes: [
-            {   match: /srcset$/,       parse: SrcSetLike }
+            {   match: /srcset$/,       parse: SrcsetLikeEditor }
         ]
     },
     {
         selector: 'link[rel="preload"]',
         attributes: [
-            {   match: /imagesrcset$/,  parse: SrcSetLike }
+            {   match: /imagesrcset$/,  parse: SrcsetLikeEditor }
         ]
     }
 ];

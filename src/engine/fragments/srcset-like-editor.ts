@@ -11,7 +11,7 @@ const lexer = moo.compile({
     url: /[^,\s]\S+[^,\s]/
 });
 
-export class SrcSetLike extends URLEditor {
+export class SrcsetLikeEditor extends URLEditor {
 
     private tokens?: moo.Token[];
     private urls?: moo.Token[];
