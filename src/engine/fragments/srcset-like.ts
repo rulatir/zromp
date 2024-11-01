@@ -1,6 +1,7 @@
-import {ParsedAttribute} from "../parsed-attribute.ts";
+import {URLEditor} from "../url-editor.ts";
 
 import moo from "moo";
+import {AttributeFragment} from "@src/engine/fragments/attribute-fragment.ts";
 
 const lexer = moo.compile({
     WS: {match: /\s+/, lineBreaks: true},
@@ -10,15 +11,13 @@ const lexer = moo.compile({
     url: /[^,\s]\S+[^,\s]/
 });
 
-export class SrcSetLike extends ParsedAttribute {
+export class SrcSetLike extends URLEditor {
 
-    private tokens: moo.Token[];
-    private urls: moo.Token[];
-    constructor(element: HTMLElement, attributeName: string, attributeValue: string) {
-        super(element, attributeName, attributeValue);
+    private tokens?: moo.Token[];
+    private urls?: moo.Token[];
+    constructor(element: HTMLElement, attributeName: string) {
+        super(new AttributeFragment(element, attributeName));
         console.log(`Parsing "${attributeValue}"`);
-        this.tokens = Array.from(lexer.reset(attributeValue));
-        this.urls = this.tokens.filter(token => token.type === "url");
     }
 
     getURLs(): string[] {
@@ -32,7 +31,12 @@ export class SrcSetLike extends ParsedAttribute {
         this.urls[index].value = newURL;
     }
 
-    apply(): void {
-        this.element.setAttribute(this.attributeName, this.tokens.map(token => token.value).join(""));
+    protected parse(value: string): void {
+        this.tokens = Array.from(lexer.reset(value));
+        this.urls = this.tokens.filter(token => token.type === "url");
+    }
+
+    protected render(): string {
+        return this.tokens.map(token => token.value).join("");
     }
 }

@@ -1,4 +1,4 @@
-export default interface ParsedAttribute {
+export default interface IURLEditor {
     element: HTMLElement;
     attributeName: string;
 

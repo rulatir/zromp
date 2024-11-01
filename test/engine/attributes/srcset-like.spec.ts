@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import { JSDOM } from "jsdom";
-import { SrcSetLike } from "@src/engine/attributes/srcset-like";
+import { SrcSetLike } from "@src/engine/fragments/srcset-like";
 
 describe("SrcSetLike", () => {
     let element: HTMLElement;

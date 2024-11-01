@@ -4,8 +4,10 @@
   "type": "module",
   "devDependencies": {
     "@types/chai": "^5.0.1",
+    "@types/css-tree": "^2.3.8",
     "@types/md5": "^2.3.5",
     "@types/mocha": "^10.0.9",
+    "@types/node": "latest",
     "bun-types": "latest",
     "chai": "^5.1.2",
     "mocha": "^10.8.2",
@@ -15,10 +17,12 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@csstools/css-tokenizer": "^3.0.3",
     "@prettier/parse-srcset": "https://github.com/prettier/parse-srcset",
     "@types/jsdom": "^21.1.7",
     "@types/moo": "^0.5.9",
     "@types/whatwg-mimetype": "^3.0.2",
+    "css-tree": "^3.0.0",
     "jsdom": "^25.0.1",
     "md5": "^2.3.0",
     "moo": "no-context/moo",

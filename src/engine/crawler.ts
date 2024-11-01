@@ -3,9 +3,9 @@ import MIMEType from "whatwg-mimetype";
 import md5 from "md5";
 import {dirname} from "node:path";
 import {JSDOM} from "jsdom";
-import { ParsedAttribute } from "./parsed-attribute.ts";
-import {HrefLike} from "./attributes/href-like.ts";
-import {SrcSetLike} from "./attributes/srcset-like.ts";
+import { URLEditor } from "./url-editor.ts";
+import {HrefLikeEditor} from "@src/engine/fragments/href-like-editor.ts";
+import {SrcSetLike} from "@src/engine/fragments/srcset-like.ts";
 
 export class Resource {
 
@@ -15,7 +15,7 @@ export class Resource {
     state: "pending" | "loading" | "loaded" | "error";
     error?: Error;
     worker?: Promise<Resource>;
-    replacements: ParsedAttribute[]
+    replacements: URLEditor[]
 
     constructor(url: URL, contentFile: string) {
         this.url = url;
@@ -168,18 +168,50 @@ export class Crawler {
     }
 }
 
+const hrefElements = [
+    "body a",
+    "link"
+]
+
+const srcElements = [
+    "body img",
+    "script",
+    "body iframe",
+    "body audio",
+    "body video",
+    "body source",
+    "body track",
+    "body embed"
+];
+
+const srcSetElements = [
+    "body img",
+    "body source"
+];
+
 const rules = [
     {
-        selector: 'body a, head > link',
+        selector: hrefElements.join(', '),
         attributes: [
-            {   match: /href$/,     parse: HrefLike }
+            {   match: /href$/,         parse: HrefLikeEditor }
         ]
     },
     {
-        selector: 'body img, body video, body video > source',
+        selector: srcElements.join(', '),
         attributes: [
-            {   match: /src$/,      parse: HrefLike },
-            {   match: /srcset$/,   parse: SrcSetLike }
+            {   match: /src$/,          parse: HrefLikeEditor }
+        ]
+    },
+    {
+        selector: srcSetElements.join(', '),
+        attributes: [
+            {   match: /srcset$/,       parse: SrcSetLike }
+        ]
+    },
+    {
+        selector: 'link[rel="preload"]',
+        attributes: [
+            {   match: /imagesrcset$/,  parse: SrcSetLike }
         ]
     }
 ];
