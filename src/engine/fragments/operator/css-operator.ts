@@ -1,6 +1,5 @@
-import {URLEditor} from "@src/engine/url-editor.ts";
-import IFragment from "@src/engine/contracts/fragment.ts";
 import {ParseError, tokenize, CSSToken, isTokenFunction, isTokenURL, isTokenString} from "@csstools/css-tokenizer";
+import IOperator from "@src/engine/contracts/fragments/operator.ts";
 
 enum TokenField {
     TYPE,
@@ -9,17 +8,34 @@ enum TokenField {
     END,
     DATA
 }
-export class CSSEditor extends URLEditor {
+export class CssOperator implements IOperator {
 
-    private css?: string;
-    private replacements: Map<string, string>;
+    private tokens: CSSToken[];
     private urlTokens: CSSToken[];
-    constructor(fragment: IFragment) {
-        super(fragment);
-        this.urlTokens = [];
+    constructor(css: string) {
+        this.parse(css)
     }
 
-    protected parse(value: string): void {
+    all(): string[] {
+        return this.urlTokens.map(token => token[TokenField.DATA].value);
+    }
+
+    put(index: number, newURL: string): void {
+        if (index < 0 || index >= this.urlTokens.length) {
+            throw new Error("Out-of-bounds index of URL string CSS fragment");
+        }
+        const token = this.urlTokens[index];
+        token[TokenField.DATA].value = newURL;
+        token[TokenField.REPRESENTATION] = isTokenString(token)
+            ? this.quoteCSSString(newURL, token[TokenField.REPRESENTATION].startsWith("'"))
+            : newURL;
+    }
+
+    text(): string {
+        return this.tokens.map(token => token[TokenField.REPRESENTATION]).join("");
+    }
+
+    private parse(value: string): void {
         this.css = value;
         this.tokens = tokenize({
             css: this.css,
@@ -35,25 +51,6 @@ export class CSSEditor extends URLEditor {
                 processingUrl = true;
             }
         }
-    }
-
-    getURLs(): string[] {
-        return this.urlTokens.map(token => token[TokenField.DATA].value);
-    }
-
-    replaceURL(index: number, newURL: string): void {
-        if (index < 0 || index >= this.urlTokens.length) {
-            throw new Error("Out-of-bounds index of URL string CSS fragment");
-        }
-        const token = this.urlTokens[index];
-        token[TokenField.DATA].value = newURL;
-        token[TokenField.REPRESENTATION] = isTokenString(token)
-            ? this.quoteCSSString(newURL, token[TokenField.REPRESENTATION].startsWith("'"))
-            : newURL;
-    }
-
-    protected render(): string {
-        return this.tokens.map(token => token[TokenField.REPRESENTATION]).join("");
     }
 
     private quoteCSSString(newURL: string, useSingleQuotes: boolean): string {

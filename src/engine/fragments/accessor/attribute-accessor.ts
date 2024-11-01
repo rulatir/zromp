@@ -1,7 +1,4 @@
-import IFragment from "@src/engine/contracts/fragment.ts";
-
-export class AttributeFragment implements IFragment {
-
+export class AttributeAccessor {
     private element: HTMLElement
     private attributeName: string
     constructor(element: HTMLElement, attributeName: string) {
@@ -10,7 +7,7 @@ export class AttributeFragment implements IFragment {
     }
 
     load(): string {
-        return this.element.getAttribute(this.attributeName) || "";
+        return this.element.getAttribute(this.attributeName);
     }
 
     store(value: string): void {

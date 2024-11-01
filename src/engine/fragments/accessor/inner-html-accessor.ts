@@ -1,5 +1,4 @@
-export class InnerHtmlFragment implements IFragment {
-
+export class InnerHtmlAccessor implements IAccessor {
     private element: HTMLElement
     constructor(element: HTMLElement) {
         this.element = element;

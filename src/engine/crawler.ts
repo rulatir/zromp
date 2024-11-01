@@ -4,8 +4,11 @@ import md5 from "md5";
 import {dirname} from "node:path";
 import {JSDOM} from "jsdom";
 import { URLEditor } from "./url-editor.ts";
-import {HrefLikeEditor} from "@src/engine/fragments/href-like-editor.ts";
-import {SrcsetLikeEditor} from "@src/engine/fragments/srcset-like-editor.ts";
+import {AttributeAccessor} from "@src/engine/fragments/accessor/attribute-accessor.ts";
+import {HrefLikeOperator} from "@src/engine/fragments/operator/href-like-operator.ts";
+import {SrcsetLikeOperator} from "@src/engine/fragments/operator/srcset-like-operator.ts";
+import {CssOperator} from "@src/engine/fragments/operator/css-operator.ts";
+import {InnerHtmlAccessor} from "@src/engine/fragments/accessor/inner-html-accessor.ts";
 
 export class Resource {
 
@@ -121,7 +124,7 @@ export class Crawler {
             }
         }
     }
-    
+
     private validateURLs(urls: string[]): URL[] {
         return urls
             .map(url => {
@@ -150,21 +153,30 @@ export class Crawler {
     private scanRootElement(resource: Resource, element: HTMLElement | null): string[] {
         if (!element) return [];
         const urls: string[] = [];
-        for (let rule of rules) {
+        for (let rule of attributeRules) {
             const elements : NodeListOf<HTMLElement> = element.querySelectorAll(rule.selector);
             for (let el of elements) {
                 for (let attributeRule of rule.attributes) {
                     for(let attribute of el.attributes) {
                         if (attributeRule.match.test(attribute.name)) {
-                            const replacement = new attributeRule.parse(el, attribute.name, attribute.value);
-                            resource.replacements.push(replacement);
-                            urls.push(...replacement.getURLs());
+                            this.registerReplacement(urls, resource, new AttributeAccessor(el, attribute.name), attributeRule.op);
                         }
                     }
                 }
             }
         }
+        for (let rule of innerHTMLRules) {
+            if (element.matches(rule.selector)) {
+                this.registerReplacement(urls, resource, new InnerHtmlAccessor(element), rule.op);
+            }
+        }
         return [...new Set(urls)];
+    }
+
+    private registerReplacement(urls: string[], resource: Resource, accessor: Accessor, operatorConstructor: Function) {
+        const replacement = new URLEditor(accessor, new operatorConstructor(accessor.load()));
+        resource.replacements.push(replacement);
+        urls.push(...replacement.all());
     }
 }
 
@@ -189,29 +201,47 @@ const srcSetElements = [
     "body source"
 ];
 
-const rules = [
+const metas = [
+    ['image','video','audio'].map(T => ['',':url',':secure_url'].map(S => T+S)).flat().map(M => `meta[property="og:${M}"]`),
+    [':image',':image:src',':player',':player:stream',':app:url'].map(S => `meta[name="twitter:${S}"]`)
+].flat();
+
+const attributeRules = [
     {
         selector: hrefElements.join(', '),
         attributes: [
-            {   match: /href$/,         parse: HrefLikeEditor }
+            {   match: /href$/,         op: HrefLikeOperator }
         ]
     },
     {
         selector: srcElements.join(', '),
         attributes: [
-            {   match: /src$/,          parse: HrefLikeEditor }
+            {   match: /src$/,          op: HrefLikeOperator }
         ]
     },
     {
         selector: srcSetElements.join(', '),
         attributes: [
-            {   match: /srcset$/,       parse: SrcsetLikeEditor }
+            {   match: /srcset$/,       op: SrcsetLikeOperator }
         ]
     },
     {
         selector: 'link[rel="preload"]',
         attributes: [
-            {   match: /imagesrcset$/,  parse: SrcsetLikeEditor }
+            {   match: /imagesrcset$/,  op: SrcsetLikeOperator }
+        ]
+    },
+    {
+        selector: metas.join(', '),
+        attributes: [
+            {   match: /^content$/,     op: HrefLikeOperator }
         ]
     }
 ];
+
+const innerHTMLRules = [
+    {
+        selector: 'style',
+        op: CssOperator
+    }
+]
