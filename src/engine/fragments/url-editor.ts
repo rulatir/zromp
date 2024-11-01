@@ -36,4 +36,9 @@ export class URLEditor implements IURLEditor, IAccessor, IOperator {
     store(value: string): void {
         this.accessor.store(string);
     }
+
+    static from(accessor: IAccessor, operatorConstructor: new(value: string) => IOperator): URLEditor {
+        return new URLEditor(accessor, new operatorConstructor(accessor.load()));
+    }
 }
+

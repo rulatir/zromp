@@ -1,32 +1,13 @@
-import {writeFile,readFile,mkdir} from "node:fs/promises";
+import {mkdir, readFile, writeFile} from "node:fs/promises";
 import MIMEType from "whatwg-mimetype";
 import md5 from "md5";
 import {dirname} from "node:path";
 import {JSDOM} from "jsdom";
-import { URLEditor } from "./url-editor.ts";
-import {AttributeAccessor} from "@src/engine/fragments/accessor/attribute-accessor.ts";
-import {HrefLikeOperator} from "@src/engine/fragments/operator/href-like-operator.ts";
-import {SrcsetLikeOperator} from "@src/engine/fragments/operator/srcset-like-operator.ts";
-import {CssOperator} from "@src/engine/fragments/operator/css-operator.ts";
-import {InnerHtmlAccessor} from "@src/engine/fragments/accessor/inner-html-accessor.ts";
-
-export class Resource {
-
-    url: URL;
-    contentFile: string;
-    mimeType?: MIMEType;
-    state: "pending" | "loading" | "loaded" | "error";
-    error?: Error;
-    worker?: Promise<Resource>;
-    replacements: URLEditor[]
-
-    constructor(url: URL, contentFile: string) {
-        this.url = url;
-        this.contentFile = contentFile;
-        this.state = "pending";
-        this.replacements = [];
-    }
-}
+import {URLEditor} from "./url-editor.ts";
+import {Resource} from "@src/engine/resource.ts";
+import {attributeRules} from "@src/engine/rules/attribute-rules.ts";
+import {innerHTMLRules} from "@src/engine/rules/inner-html-rules.ts";
+import {AttributeFinder} from "@src/engine/rules/attribute-finder.ts";
 
 export class Crawler {
 
@@ -153,21 +134,10 @@ export class Crawler {
     private scanRootElement(resource: Resource, element: HTMLElement | null): string[] {
         if (!element) return [];
         const urls: string[] = [];
-        for (let rule of attributeRules) {
-            const elements : NodeListOf<HTMLElement> = element.querySelectorAll(rule.selector);
-            for (let el of elements) {
-                for (let attributeRule of rule.attributes) {
-                    for(let attribute of el.attributes) {
-                        if (attributeRule.match.test(attribute.name)) {
-                            this.registerReplacement(urls, resource, new AttributeAccessor(el, attribute.name), attributeRule.op);
-                        }
-                    }
-                }
-            }
-        }
-        for (let rule of innerHTMLRules) {
-            if (element.matches(rule.selector)) {
-                this.registerReplacement(urls, resource, new InnerHtmlAccessor(element), rule.op);
+        for(let finder of [new AttributeFinder(attributeRules), new ElementFinder(innerHTMLRules)]) {
+            for (let editor of finder.find(element)) {
+                resource.replacements.push(editor);
+                urls.push(...editor.all());
             }
         }
         return [...new Set(urls)];
@@ -180,68 +150,3 @@ export class Crawler {
     }
 }
 
-const hrefElements = [
-    "body a",
-    "link"
-]
-
-const srcElements = [
-    "body img",
-    "script",
-    "body iframe",
-    "body audio",
-    "body video",
-    "body source",
-    "body track",
-    "body embed"
-];
-
-const srcSetElements = [
-    "body img",
-    "body source"
-];
-
-const metas = [
-    ['image','video','audio'].map(T => ['',':url',':secure_url'].map(S => T+S)).flat().map(M => `meta[property="og:${M}"]`),
-    [':image',':image:src',':player',':player:stream',':app:url'].map(S => `meta[name="twitter:${S}"]`)
-].flat();
-
-const attributeRules = [
-    {
-        selector: hrefElements.join(', '),
-        attributes: [
-            {   match: /href$/,         op: HrefLikeOperator }
-        ]
-    },
-    {
-        selector: srcElements.join(', '),
-        attributes: [
-            {   match: /src$/,          op: HrefLikeOperator }
-        ]
-    },
-    {
-        selector: srcSetElements.join(', '),
-        attributes: [
-            {   match: /srcset$/,       op: SrcsetLikeOperator }
-        ]
-    },
-    {
-        selector: 'link[rel="preload"]',
-        attributes: [
-            {   match: /imagesrcset$/,  op: SrcsetLikeOperator }
-        ]
-    },
-    {
-        selector: metas.join(', '),
-        attributes: [
-            {   match: /^content$/,     op: HrefLikeOperator }
-        ]
-    }
-];
-
-const innerHTMLRules = [
-    {
-        selector: 'style',
-        op: CssOperator
-    }
-]
