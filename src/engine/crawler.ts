@@ -7,37 +7,42 @@ import {Resource} from "@src/engine/resource.ts";
 import {attributeRules} from "@src/engine/rules/attribute-rules.ts";
 import {innerHTMLRules} from "@src/engine/rules/inner-html-rules.ts";
 import {AttributeFinder} from "@src/engine/rules/attribute-finder.ts";
-import {caughtNew} from "@src/utility/caught.ts";
+import {caught} from "@src/utility/caught.ts";
 
-export class Crawler {
-
+export class ResourceCache {
     private readonly cacheDir: string;
     private resources: Map<string, Resource>;
-    private queue: Array<Resource>;
+    private contentFilePath(url: URL) : string {
+        const hash = md5(url.href);
+        return `${this.cacheDir}/${hash.substring(0,2)}/${hash.substring(2,4)}/${hash}`;
+    }
+    private has(url: URL) : boolean {
+        return this.resources.has(url.href);
+    }
+    private get(url: URL) : Resource {
+        return this.resources.get(url.href);
+    }
+    private put(resource: Resource) : void {
+        this.resources.set(resource.absoluteURL.href, resource);
+    }
+}
+export class Crawler {
+
+    private readonly resourceCache: ResourceCache;
+    private readonly queue: Array<Resource>;
     private readonly workers: Set<Promise<Resource>>;
     private readonly maxWorkers: number;
 
     constructor(cacheDir: string, maxWorkers: number) {
-        this.cacheDir = cacheDir;
-        this.resources = new Map();
+
+        this.resourceCache = new ResourceCache();
         this.queue = [];
         this.workers = new Set();
         this.maxWorkers = maxWorkers;
     }
 
-    enqueue(...urls: URL[]) {
-        for (let url of urls) {
-            if (!this.resources.has(url.href)) {
-                const resource = new Resource(url, this.contentFilePath(url));
-                this.resources.set(url.href, resource);
-                this.queue.push(resource);
-            }
-        }
-    }
-
-    private contentFilePath(url: URL) {
-        const hash = md5(url.href);
-        return `${this.cacheDir}/${hash.substring(0,2)}/${hash.substring(2,4)}/${hash}`;
+    enqueue(baseURL: URL, ...urls: URL[]) {
+        this.queue.push(...urls.map(ResourceRegistrator.bind(baseURL,this.resourceCache)).filter(Boolean));
     }
 
     private normalizeError(e: unknown): Error {
@@ -60,7 +65,7 @@ export class Crawler {
 
     async _request(resource: Resource): Promise<Resource> {
         resource.state = "loading";
-        const response = await fetch(resource.url.href);
+        const response = await fetch(resource.absoluteURL.href);
         if (response.ok) {
             try {
                 resource.mimeType = new MIMEType(response.headers.get("Content-Type") || "application/octet-stream");
@@ -75,7 +80,7 @@ export class Crawler {
         }
         else {
             resource.state = "error";
-            resource.error = new Error(`Failed to fetch ${resource.url.href}: ${response.status} ${response.statusText}`);
+            resource.error = new Error(`Failed to fetch ${resource.absoluteURL.href}: ${response.status} ${response.statusText}`);
         }
         return resource;
     }
@@ -115,7 +120,7 @@ export class Crawler {
         const urls: string[] = [];
         for(let finder of [new AttributeFinder(attributeRules), new ElementFinder(innerHTMLRules)]) {
             for (let editor of finder.find(element)) {
-                resource.replacements.push(editor);
+                resource.replacers.push(editor);
                 urls.push(...editor.all());
             }
         }
@@ -123,11 +128,10 @@ export class Crawler {
     }
 
     private validateURLs(urls: string[]): URL[] {
-        return urls.map(caughtNew(URL)).filter(Boolean) as URL[];
+        return urls.map(caught(URL)).filter(Boolean) as URL[];
     }
 
     private filterURLs(urls: URL[]) :URL[] {
         return urls;
     }
 }
-

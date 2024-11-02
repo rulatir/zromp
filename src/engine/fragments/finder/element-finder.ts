@@ -1,6 +1,6 @@
 import {InnerHtmlAccessor} from "@src/engine/fragments/accessor/inner-html-accessor.ts";
 import {ElementRule} from "@src/engine/rules/inner-html-rules.ts";
-import {Finder} from "@src/engine/finders/finder.ts";
+import {Finder} from "@src/engine/fragments/finder/finder.ts";
 
 export class ElementFinder extends Finder<ElementRule> {
     constructor(private rules) {}

@@ -1,15 +1,21 @@
-export function caughtNew(ctor: Function, otherwise) {
-    return _ => {
-        try { return new ctor(_); }
-        catch(e) { return otherwise; }
-    }
-}
+// For regular functions
+function caught<X, R>(transformer: (x: X) => R): (x: X) => R | undefined;
+function caught<X, R, F>(transformer: (x: X) => R, fallback: F): (x: X) => R | F;
 
-export function caught(mapper: Function, otherwise) {
-    return _ => {
-        try { return mapper(_); }
-        catch(e) { return otherwise; }
-    }
-}
+// For constructors
+function caught<X, R>(transformer: new (x: X) => R): (x: X) => R | undefined;
+function caught<X, R, F>(transformer: new (x: X) => R, fallback: F): (x: X) => R | F;
 
-caught.New = caughtNew;
+// Implementation
+function caught(transformer: Function, fallback?: any) {
+    return function(x: any) {
+        try {
+            if (transformer.prototype && transformer.prototype.constructor === transformer) {
+                return new transformer(x);
+            }
+            return transformer(x);
+        } catch {
+            return fallback;
+        }
+    };
+}

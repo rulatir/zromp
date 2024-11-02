@@ -1,7 +1,7 @@
 import {AttributeAccessor} from "@src/engine/fragments/accessor/attribute-accessor.ts";
 import {URLEditor} from "@src/engine/fragments/url-editor.ts";
 import {ElementAttributeRule} from "@src/engine/rules/attribute-rules.ts";
-import {Finder} from "@src/engine/finders/finder.ts";
+import {Finder} from "@src/engine/fragments/finder/finder.ts";
 export class AttributeFinder extends Finder<ElementAttributeRule> {
 
     *find(root: HTMLElement | null): IterableIterator<URLEditor> {
