@@ -1,5 +1,4 @@
-import IURLEditor from "./contracts/url-editor.ts";
-import IAccessor from "@src/engine/contracts/accessor.ts";
+import IURLEditor from "@src/engine/contracts/url-editor.ts";
 import IOperator from "@src/engine/contracts/fragments/operator.ts";
 import IAccessor from "@src/engine/contracts/fragments/accessor.ts";
 
@@ -30,11 +29,11 @@ export class URLEditor implements IURLEditor, IAccessor, IOperator {
     }
 
     load(): string {
-        return this.accessor.load();
+        return this.fragment.load();
     }
 
     store(value: string): void {
-        this.accessor.store(string);
+        this.fragment.store(value);
     }
 
     static from(accessor: IAccessor, operatorConstructor: new(value: string) => IOperator): URLEditor {

@@ -1,5 +1,3 @@
-import {URLEditor} from "../url-editor.ts";
-import {AttributeFragment} from "@src/engine/fragments/attribute-fragment.ts";
 import IOperator from "@src/engine/contracts/fragments/operator.ts";
 
 export class HrefLikeOperator implements IOperator {

@@ -1,31 +1,17 @@
 import {mkdir, readFile, writeFile} from "node:fs/promises";
 import MIMEType from "whatwg-mimetype";
-import md5 from "md5";
 import {dirname} from "node:path";
 import {JSDOM} from "jsdom";
-import {Resource} from "@src/engine/resource.ts";
+import {Resource, ResourceRegistrator} from "@src/engine/resource.ts";
 import {attributeRules} from "@src/engine/rules/attribute-rules.ts";
 import {innerHTMLRules} from "@src/engine/rules/inner-html-rules.ts";
-import {AttributeFinder} from "@src/engine/rules/attribute-finder.ts";
 import {caught} from "@src/utility/caught.ts";
+import {normalizeError} from "@src/utility/normalize-error.ts";
+import {ResourceCache} from "@src/engine/resource-cache.ts";
+import {AttributeFinder} from "@src/engine/fragments/finder/attribute-finder.ts";
+import {ElementFinder} from "@src/engine/fragments/finder/element-finder.ts";
+import {Defined} from "@src/utility/troo.ts";
 
-export class ResourceCache {
-    private readonly cacheDir: string;
-    private resources: Map<string, Resource>;
-    private contentFilePath(url: URL) : string {
-        const hash = md5(url.href);
-        return `${this.cacheDir}/${hash.substring(0,2)}/${hash.substring(2,4)}/${hash}`;
-    }
-    private has(url: URL) : boolean {
-        return this.resources.has(url.href);
-    }
-    private get(url: URL) : Resource {
-        return this.resources.get(url.href);
-    }
-    private put(resource: Resource) : void {
-        this.resources.set(resource.absoluteURL.href, resource);
-    }
-}
 export class Crawler {
 
     private readonly resourceCache: ResourceCache;
@@ -35,32 +21,14 @@ export class Crawler {
 
     constructor(cacheDir: string, maxWorkers: number) {
 
-        this.resourceCache = new ResourceCache();
+        this.resourceCache = new ResourceCache(cacheDir);
         this.queue = [];
         this.workers = new Set();
         this.maxWorkers = maxWorkers;
     }
 
     enqueue(baseURL: URL, ...urls: URL[]) {
-        this.queue.push(...urls.map(ResourceRegistrator.bind(baseURL,this.resourceCache)).filter(Boolean));
-    }
-
-    private normalizeError(e: unknown): Error {
-        if (e instanceof Error) {
-            return e;
-        } else if (typeof e === "string") {
-            return new Error(e);
-        } else if (
-            typeof e === "object"
-            && e !== null
-            && "toString" in e
-            && typeof e.toString === "function"
-            && e.toString() !== Object.prototype.toString.call({})
-        ) {
-            return new Error(e.toString());
-        } else {
-            return new Error("Unknown error");
-        }
+        this.queue.push(...urls.map(ResourceRegistrator.bind(baseURL,this.resourceCache)).filter(Defined<Resource>));
     }
 
     async _request(resource: Resource): Promise<Resource> {
@@ -75,7 +43,7 @@ export class Crawler {
             }
             catch (e) {
                 resource.state = "error";
-                resource.error = this.normalizeError(e);
+                resource.error = normalizeError(e);
             }
         }
         else {
@@ -101,7 +69,10 @@ export class Crawler {
                 delete resource.worker;
             }
             if (resource.state === "loaded") {
-                this.enqueue(...this.filterURLs(this.validateURLs(await this.extractURLs(resource))));
+                this.enqueue(
+                    resource.absoluteURL,
+                    ...this.filterURLs(this.validateURLs(await this.extractURLs(resource)))
+                );
             }
         }
     }

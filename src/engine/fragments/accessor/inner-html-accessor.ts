@@ -1,3 +1,5 @@
+import IAccessor from "@src/engine/contracts/fragments/accessor.ts";
+
 export class InnerHtmlAccessor implements IAccessor {
     private element: HTMLElement
     constructor(element: HTMLElement) {

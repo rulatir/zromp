@@ -3,7 +3,7 @@
     "lib": ["esnext", "dom"],
     "module": "esnext",
     "target": "esnext",
-    "moduleResolution": "node",
+    "moduleResolution": "nodenext",
     "moduleDetection": "force",
     "allowImportingTsExtensions": true,
     "noEmit": true,
@@ -19,7 +19,8 @@
     "baseUrl": ".",
     "paths": {
       "@src/*": ["src/*"]
-    }
+    },
+    "esModuleInterop": true
   },
   "include": ["src/**/*.ts", "test/**/*.ts"]
 }

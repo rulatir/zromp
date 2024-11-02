@@ -1,7 +1,5 @@
-import {URLEditor} from "../url-editor.ts";
-
 import moo from "moo";
-import {AttributeFragment} from "@src/engine/fragments/attribute-fragment.ts";
+import IOperator from "@src/engine/contracts/fragments/operator.js";
 
 const lexer = moo.compile({
     WS: {match: /\s+/, lineBreaks: true},
@@ -11,12 +9,12 @@ const lexer = moo.compile({
     url: /[^,\s]\S+[^,\s]/
 });
 
-export class SrcsetLikeOperator extends IOperator {
+export class SrcsetLikeOperator implements IOperator {
 
     private tokens!: moo.Token[];
     private urls!: moo.Token[];
     constructor(srcset: string) {
-        this.parse(string);
+        this.parse(srcset);
     }
 
     all(): string[] {

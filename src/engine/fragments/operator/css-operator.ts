@@ -1,7 +1,15 @@
-import {ParseError, tokenize, CSSToken, isTokenFunction, isTokenURL, isTokenString} from "@csstools/css-tokenizer";
+import {
+    tokenize,
+    CSSToken,
+    isTokenFunction,
+    isTokenURL,
+    isTokenString,
+    TokenURL, TokenString
+} from "@csstools/css-tokenizer";
 import IOperator from "@src/engine/contracts/fragments/operator.ts";
 
 enum TokenField {
+    // noinspection JSUnusedGlobalSymbols
     TYPE,
     REPRESENTATION,
     START,
@@ -10,10 +18,10 @@ enum TokenField {
 }
 export class CssOperator implements IOperator {
 
-    private tokens: CSSToken[];
-    private urlTokens: CSSToken[];
-    constructor(css: string) {
-        this.parse(css)
+    private tokens!: CSSToken[];
+    private urlTokens!: (TokenURL|TokenString)[];
+    constructor(private css: string) {
+        this.parse()
     }
 
     all(): string[] {
@@ -35,19 +43,15 @@ export class CssOperator implements IOperator {
         return this.tokens.map(token => token[TokenField.REPRESENTATION]).join("");
     }
 
-    private parse(value: string): void {
-        this.css = value;
-        this.tokens = tokenize({
-            css: this.css,
-            onParseError: (error: ParseError) => { return; }
-        });
+    private parse(): void {
+        this.tokens = tokenize({css: this.css});
         this.urlTokens = [];
         let processingUrl: boolean = false;
         for (let token of this.tokens) {
             if (isTokenURL(token) || processingUrl && isTokenString(token)) {
                 this.urlTokens.push(token);
                 processingUrl = false;
-            } else if (isTokenFunction(token) && token.value === "url") {
+            } else if (isTokenFunction(token) && token[TokenField.DATA].value === "url") {
                 processingUrl = true;
             }
         }
