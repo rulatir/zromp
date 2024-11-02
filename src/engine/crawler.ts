@@ -3,11 +3,11 @@ import MIMEType from "whatwg-mimetype";
 import md5 from "md5";
 import {dirname} from "node:path";
 import {JSDOM} from "jsdom";
-import {URLEditor} from "./url-editor.ts";
 import {Resource} from "@src/engine/resource.ts";
 import {attributeRules} from "@src/engine/rules/attribute-rules.ts";
 import {innerHTMLRules} from "@src/engine/rules/inner-html-rules.ts";
 import {AttributeFinder} from "@src/engine/rules/attribute-finder.ts";
+import {caughtNew} from "@src/utility/caught.ts";
 
 export class Crawler {
 
@@ -64,7 +64,6 @@ export class Crawler {
         if (response.ok) {
             try {
                 resource.mimeType = new MIMEType(response.headers.get("Content-Type") || "application/octet-stream");
-
                 await mkdir(dirname(resource.contentFile), {recursive: true});
                 await writeFile(resource.contentFile, await response.text());
                 resource.state = "loaded";
@@ -89,33 +88,17 @@ export class Crawler {
 
     async run() {
         while (this.queue.length > 0 || this.workers.size > 0) {
-            const numNewWorkers = this.maxWorkers - Math.min(this.workers.size, this.maxWorkers);
-            this.queue
-                .splice(0, numNewWorkers)
-                .map(resource => this.request(resource))
-                .forEach(worker => this.workers.add(worker));
+            this.queue.splice(0, this.maxWorkers - this.workers.size).forEach(resource => this.request(resource));
 
             const resource = await Promise.race(this.workers);
             if (resource.worker) {
                 this.workers.delete(resource.worker);
                 delete resource.worker;
             }
-            if(resource.state === "loaded") {
+            if (resource.state === "loaded") {
                 this.enqueue(...this.filterURLs(this.validateURLs(await this.extractURLs(resource))));
             }
         }
-    }
-
-    private validateURLs(urls: string[]): URL[] {
-        return urls
-            .map(url => {
-                try {
-                    return new URL(url);
-                } catch (e) {
-                    return null;
-                }
-            })
-            .filter(url => url !== null) as URL[];
     }
 
     private async extractURLs(resource: Resource): Promise<string[]> {
@@ -125,10 +108,6 @@ export class Crawler {
             ...this.scanRootElement(resource, doc.window.document.querySelector("head")),
             ...this.scanRootElement(resource, doc.window.document.querySelector("body"))
         ])];
-    }
-
-    private filterURLs(urls: URL[]) :URL[] {
-        return urls;
     }
 
     private scanRootElement(resource: Resource, element: HTMLElement | null): string[] {
@@ -143,10 +122,12 @@ export class Crawler {
         return [...new Set(urls)];
     }
 
-    private registerReplacement(urls: string[], resource: Resource, accessor: Accessor, operatorConstructor: Function) {
-        const replacement = new URLEditor(accessor, new operatorConstructor(accessor.load()));
-        resource.replacements.push(replacement);
-        urls.push(...replacement.all());
+    private validateURLs(urls: string[]): URL[] {
+        return urls.map(caughtNew(URL)).filter(Boolean) as URL[];
+    }
+
+    private filterURLs(urls: URL[]) :URL[] {
+        return urls;
     }
 }
 
